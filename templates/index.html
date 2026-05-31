@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phishing Website Detector</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #0f0f1a;
+            color: #fff;
+            min-height: 100vh;
+            padding: 30px;
+        }
+
+        .container {
+            max-width: 700px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 2rem;
+            color: #00d4ff;
+            margin-bottom: 5px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #888;
+            margin-bottom: 40px;
+            font-size: 0.95rem;
+        }
+
+        .card {
+            background: #1a1a2e;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 20px;
+            border: 1px solid #2a2a4a;
+        }
+
+        .card h2 {
+            color: #00d4ff;
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+        }
+
+        .url-input {
+            width: 100%;
+            padding: 14px 16px;
+            background: #0f0f1a;
+            border: 2px solid #2a2a4a;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        .url-input:focus {
+            border-color: #00d4ff;
+        }
+
+        .url-input::placeholder {
+            color: #555;
+        }
+
+        .predict-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #00d4ff, #0066ff);
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: opacity 0.3s;
+            margin-top: 15px;
+        }
+
+        .predict-btn:hover { opacity: 0.85; }
+        .predict-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            color: #00d4ff;
+            font-size: 1rem;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            border: 3px solid #2a2a4a;
+            border-top-color: #00d4ff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 10px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .result-box {
+            display: none;
+            text-align: center;
+            padding: 30px;
+            border-radius: 12px;
+            margin-top: 20px;
+        }
+
+        .result-box.phishing {
+            background: #2a0a0a;
+            border: 2px solid #ff4444;
+        }
+
+        .result-box.legitimate {
+            background: #0a2a0a;
+            border: 2px solid #44ff44;
+        }
+
+        .result-icon { font-size: 3.5rem; margin-bottom: 10px; }
+
+        .result-title {
+            font-size: 1.8rem;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .phishing .result-title { color: #ff4444; }
+        .legitimate .result-title { color: #44ff44; }
+
+        .result-url {
+            font-size: 0.85rem;
+            color: #aaa;
+            margin-bottom: 20px;
+            word-break: break-all;
+        }
+
+        .result-details {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        .detail-item {
+            background: rgba(255,255,255,0.05);
+            padding: 12px 20px;
+            border-radius: 8px;
+            min-width: 120px;
+        }
+
+        .detail-label {
+            font-size: 0.75rem;
+            color: #aaa;
+            margin-bottom: 4px;
+        }
+
+        .detail-value {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #fff;
+        }
+
+        .error-box {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            border-radius: 12px;
+            margin-top: 20px;
+            background: #2a1a0a;
+            border: 2px solid #ffaa00;
+            color: #ffaa00;
+        }
+
+        .examples {
+            margin-top: 10px;
+        }
+
+        .examples p {
+            font-size: 0.8rem;
+            color: #666;
+            margin-bottom: 8px;
+        }
+
+        .example-urls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .example-btn {
+            padding: 5px 12px;
+            background: #0f0f1a;
+            border: 1px solid #2a2a4a;
+            border-radius: 20px;
+            color: #aaa;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .example-btn:hover {
+            border-color: #00d4ff;
+            color: #00d4ff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+
+        <h1>🛡️ Phishing Website Detector</h1>
+        <p class="subtitle">ML-Based Phishing Detection — Powered by Random Forest</p>
+
+        <!-- URL Input -->
+        <div class="card">
+            <h2>🔗 Enter Website URL</h2>
+            <input
+                type="text"
+                id="urlInput"
+                class="url-input"
+                placeholder="e.g. https://www.google.com"
+                onkeypress="if(event.key==='Enter') predict()"
+            />
+
+            <div class="examples">
+                <p>Quick examples:</p>
+                <div class="example-urls">
+                    <button class="example-btn" onclick="setUrl('https://www.google.com')">google.com</button>
+                    <button class="example-btn" onclick="setUrl('https://www.facebook.com')">facebook.com</button>
+                    <button class="example-btn" onclick="setUrl('http://192.168.1.1/login/verify')">IP Address URL</button>
+                    <button class="example-btn" onclick="setUrl('http://paypa1-secure-login.com/verify')">Fake PayPal</button>
+                </div>
+            </div>
+
+            <button class="predict-btn" id="predictBtn" onclick="predict()">
+                🔍 Detect Phishing
+            </button>
+        </div>
+
+        <!-- Loading -->
+        <div class="loading" id="loading">
+            <div class="loading-spinner"></div>
+            <p>Analyzing URL... Please wait</p>
+            <p style="font-size:0.8rem; color:#666; margin-top:5px;">Checking domain, WHOIS data & URL patterns</p>
+        </div>
+
+        <!-- Error -->
+        <div class="error-box" id="errorBox">
+            ⚠️ <span id="errorMsg"></span>
+        </div>
+
+        <!-- Result -->
+        <div class="result-box" id="resultBox">
+            <div class="result-icon" id="resultIcon"></div>
+            <div class="result-title" id="resultTitle"></div>
+            <div class="result-url" id="resultUrl"></div>
+            <div class="result-details">
+                <div class="detail-item">
+                    <div class="detail-label">Confidence</div>
+                    <div class="detail-value" id="confidence"></div>
+                </div>
+                <div class="detail-item">
+                    <div class="detail-label">Model</div>
+                    <div class="detail-value" id="modelUsed"></div>
+                </div>
+                <div class="detail-item">
+                    <div class="detail-label">Risk Level</div>
+                    <div class="detail-value" id="riskLevel"></div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        function setUrl(url) {
+            document.getElementById('urlInput').value = url;
+        }
+
+        function getRiskLevel(confidence, isPhishing) {
+            if (!isPhishing) return '🟢 SAFE';
+            if (confidence >= 90) return '🔴 HIGH';
+            if (confidence >= 70) return '🟡 MEDIUM';
+            return '🟠 LOW';
+        }
+
+        function predict() {
+            var url = document.getElementById('urlInput').value.trim();
+
+            if (!url) {
+                alert('Please enter a URL first!');
+                return;
+            }
+
+            // UI reset
+            document.getElementById('errorBox').style.display = 'none';
+            document.getElementById('resultBox').style.display = 'none';
+            document.getElementById('loading').style.display = 'block';
+
+            var btn = document.getElementById('predictBtn');
+            btn.disabled = true;
+            btn.innerText = '⏳ Analyzing...';
+
+            fetch('/predict', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: url })
+            })
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                document.getElementById('loading').style.display = 'none';
+                btn.disabled = false;
+                btn.innerText = '🔍 Detect Phishing';
+
+                if (data.error) {
+                    document.getElementById('errorBox').style.display = 'block';
+                    document.getElementById('errorMsg').innerText = data.error;
+                    return;
+                }
+
+                var box = document.getElementById('resultBox');
+                box.style.display = 'block';
+
+                var confidence = data.confidence || 0;
+                var isPhishing = data.result === 'PHISHING';
+
+                if (isPhishing) {
+                    box.className = 'result-box phishing';
+                    document.getElementById('resultIcon').innerText = '🚨';
+                    document.getElementById('resultTitle').innerText = '⚠️ PHISHING DETECTED!';
+                } else {
+                    box.className = 'result-box legitimate';
+                    document.getElementById('resultIcon').innerText = '✅';
+                    document.getElementById('resultTitle').innerText = '✅ LEGITIMATE WEBSITE';
+                }
+
+                document.getElementById('resultUrl').innerText = '🔗 ' + data.url;
+                document.getElementById('confidence').innerText = confidence + '%';
+                document.getElementById('modelUsed').innerText = data.model;
+                document.getElementById('riskLevel').innerText = getRiskLevel(confidence, isPhishing);
+
+                box.scrollIntoView({ behavior: 'smooth' });
+            })
+            .catch(function(err) {
+                document.getElementById('loading').style.display = 'none';
+                btn.disabled = false;
+                btn.innerText = '🔍 Detect Phishing';
+                document.getElementById('errorBox').style.display = 'block';
+                document.getElementById('errorMsg').innerText = 'Connection error: ' + err.message;
+            });
+        }
+    </script>
+</body>
+</html>
